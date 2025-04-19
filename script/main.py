@@ -78,21 +78,59 @@ while True:
         index_pos = (int(index_tip.x * w), int(index_tip.y * h))
         middle_pos = (int(middle_tip.x * w), int(middle_tip.y * h))
 
-        # Map camera coordinates (which range 0-1) to full screen size with clamping
-        sx = min(max(int(index_tip.x * screen_w), 0), screen_w - 1)
-        sy = min(max(int(index_tip.y * screen_h), 0), screen_h - 1)
+        # Define ROI boundaries (tune these to your camera setup)
+        roi_left = 0.2
+        roi_right = 0.8
+        roi_top = 0.2
+        roi_bottom = 0.8
+
+        # Normalize coordinates within ROI and map to screen
+        norm_x = (index_tip.x - roi_left) / (roi_right - roi_left)
+        norm_y = (index_tip.y - roi_top) / (roi_bottom - roi_top)
+
+        # Clamp between 0 and 1
+        norm_x = min(max(norm_x, 0.0), 1.0)
+        norm_y = min(max(norm_y, 0.0), 1.0)
+
+        padding = 5  # pixels away from edge to avoid fail-safe trigger
+        sx = int(norm_x * (screen_w - 2 * padding)) + padding
+        sy = int(norm_y * (screen_h - 2 * padding)) + padding
+
+
 
 
         # ------------------- Finger States -------------------
         finger_states = fingers_up(lm)
 
         # ------------------- Click Detection -------------------
-        if finger_states[1] == 1 and finger_states[0] == 1:
-            dist = distance(index_pos, (int(thumb_tip.x * w), int(thumb_tip.y * h)))
-            if dist < 25 and time.time() - click_cooldown > 0.8:
-                pyautogui.click()
-                click_cooldown = time.time()
-                cv2.putText(img, "Click", (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+# ------------------- Click Detection using L Shape -------------------
+        if finger_states[1] == 1 and finger_states[0] == 1:  # Index and Thumb up
+            wrist = lm[0]
+            
+            # Vectors from wrist to thumb tip and index tip
+            v1 = (lm[4].x - wrist.x, lm[4].y - wrist.y)   # Thumb
+            v2 = (lm[8].x - wrist.x, lm[8].y - wrist.y)   # Index
+
+            # Calculate angle between vectors
+            dot_product = v1[0]*v2[0] + v1[1]*v2[1]
+            mag_v1 = math.hypot(v1[0], v1[1])
+            mag_v2 = math.hypot(v2[0], v2[1])
+
+            if mag_v1 > 0 and mag_v2 > 0:
+                angle_rad = math.acos(dot_product / (mag_v1 * mag_v2))
+                angle_deg = math.degrees(angle_rad)
+
+                # Show angle on screen for debugging
+                cv2.putText(img, f"Angle: {int(angle_deg)}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+
+                # If angle is around 90 degrees, trigger click
+                if 35 <= angle_deg <= 65 and time.time() - click_cooldown > 0.8:
+                    pyautogui.click()
+                    click_cooldown = time.time()
+                    cv2.putText(img, "L-Click", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
+
+            # Calculate angle between vectors using dot product
+
 
         # ------------------- Scroll Detection -------------------
         if finger_states[1] == 1 and finger_states[2] == 1 and all(f == 0 for f in finger_states[3:]): 
