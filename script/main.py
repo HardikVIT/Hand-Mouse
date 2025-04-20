@@ -4,7 +4,7 @@ import pyautogui
 import math
 import time
 
-# Initialize mediapipe and setup
+
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(
     max_num_hands=1,
@@ -13,17 +13,17 @@ hands = mp_hands.Hands(
 )
 draw = mp.solutions.drawing_utils
 
-# Setup camera and screen
+
 screen_w, screen_h = pyautogui.size()
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
-# Scroll and annotation memory
+
 prev_x, prev_y = None, None
-prev_scroll_y = None  # <-- add this line
+prev_scroll_y = None 
 
 click_cooldown = 0
-smooth_factor = 0.3  # Higher smooth factor for smoother movement
+smooth_factor = 0.3 
 
 def distance(p1, p2):
     return math.hypot(p2[0] - p1[0], p2[1] - p1[1])
@@ -35,7 +35,7 @@ def fingers_up(landmarks):
     """
     fingers = []
 
-    # Thumb: check if tip x is to the right of IP joint (for right hand)
+    # Thumb
     fingers.append(1 if landmarks[4].x < landmarks[3].x else 0)
 
     # Index
@@ -50,10 +50,7 @@ def fingers_up(landmarks):
     return fingers
 
 def smooth_move(prev_pos, current_pos, smooth_factor):
-    """
-    Smoothly interpolate between the last and current positions for smoother movement.
-    """
-    # If previous position is None, return current position directly
+
     if prev_pos is None:
         return current_pos
     x = int(prev_pos[0] + smooth_factor * (current_pos[0] - prev_pos[0]))
@@ -103,7 +100,6 @@ while True:
         finger_states = fingers_up(lm)
 
         # ------------------- Click Detection -------------------
-# ------------------- Click Detection using L Shape -------------------
         if finger_states[1] == 1 and finger_states[0] == 1:  # Index and Thumb up
             wrist = lm[0]
             
@@ -154,7 +150,7 @@ while True:
             prev_scroll_y = None
 
         # ------------------- Mouse Movement (Annotation) -------------------
-        if finger_states[1] == 1:  # Index finger up
+        if finger_states[1] == 1:
             # Only smooth move if both prev_x and prev_y are valid
             if prev_x is not None and prev_y is not None:
                 smooth_position = smooth_move((prev_x, prev_y), (sx, sy), smooth_factor)
@@ -167,7 +163,6 @@ while True:
         draw.draw_landmarks(img, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
     else:
-        # Hand lost - don't move the cursor anymore
         prev_x, prev_y = None, None
 
     cv2.imshow("Hand Mouse Controller", img)
